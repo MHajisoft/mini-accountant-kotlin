@@ -1,0 +1,6 @@
+{
+  "name": "Finance Tracker",
+  "description": "A smart multi-lingual (Persian, Arabic, English) financial tracking mobile application with 8 dynamic themes, inter-account transfers, and native JSON backup/sync functionality.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
