@@ -418,9 +418,9 @@ fun formatCultureDate(timestamp: Long, lang: AppLanguage): String {
     val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
     return if (isJalali) {
         val jDate = JalaliCalendarHelper.gregorianToJalali(JalaliCalendarHelper.GregorianDate(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)))
-        "${jDate.year}/${jDate.month}/${jDate.day}"
+        "${jDate.year}/${jDate.month}/${jDate.day}".formatByLang(if(isJalali) AppLanguage.FA else AppLanguage.EN)
     } else {
-        "${cal.get(Calendar.YEAR)}/${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
+        "${cal.get(Calendar.YEAR)}/${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}".formatByLang(if(isJalali) AppLanguage.FA else AppLanguage.EN)
     }
 }
 
@@ -448,19 +448,33 @@ fun CultureDatePickerDialog(initialTimestamp: Long, lang: AppLanguage, onDismiss
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconButton(onClick = { year++ }) { Icon(Icons.Default.KeyboardArrowUp, null) }
-                        Text("$year")
-                        IconButton(onClick = { year-- }) { Icon(Icons.Default.KeyboardArrowDown, null) }
+                        IconButton(onClick = { if (year < 2100) year++ }) { Icon(Icons.Default.KeyboardArrowUp, null) }
+                        Text(year.toString().formatByLang(lang))
+                        IconButton(onClick = { if (year > 1300) year-- }) { Icon(Icons.Default.KeyboardArrowDown, null) }
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconButton(onClick = { month = if(month == 12) 1 else month + 1 }) { Icon(Icons.Default.KeyboardArrowUp, null) }
-                        Text("$month")
-                        IconButton(onClick = { month = if(month == 1) 12 else month - 1 }) { Icon(Icons.Default.KeyboardArrowDown, null) }
+                        IconButton(onClick = { 
+                            month = if(month == 12) 1 else month + 1 
+                            val maxDays = if(isJalali) JalaliCalendarHelper.getJalaliDaysInMonth(year, month) else JalaliCalendarHelper.getGregorianDaysInMonth(year, month)
+                            if (day > maxDays) day = maxDays
+                        }) { Icon(Icons.Default.KeyboardArrowUp, null) }
+                        Text(month.toString().formatByLang(lang))
+                        IconButton(onClick = { 
+                            month = if(month == 1) 12 else month - 1 
+                            val maxDays = if(isJalali) JalaliCalendarHelper.getJalaliDaysInMonth(year, month) else JalaliCalendarHelper.getGregorianDaysInMonth(year, month)
+                            if (day > maxDays) day = maxDays
+                        }) { Icon(Icons.Default.KeyboardArrowDown, null) }
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconButton(onClick = { day = if(day == 31) 1 else day + 1 }) { Icon(Icons.Default.KeyboardArrowUp, null) }
-                        Text("$day")
-                        IconButton(onClick = { day = if(day == 1) 31 else day - 1 }) { Icon(Icons.Default.KeyboardArrowDown, null) }
+                        IconButton(onClick = { 
+                            val maxDays = if(isJalali) JalaliCalendarHelper.getJalaliDaysInMonth(year, month) else JalaliCalendarHelper.getGregorianDaysInMonth(year, month)
+                            day = if(day >= maxDays) 1 else day + 1 
+                        }) { Icon(Icons.Default.KeyboardArrowUp, null) }
+                        Text(day.toString().formatByLang(lang))
+                        IconButton(onClick = { 
+                            val maxDays = if(isJalali) JalaliCalendarHelper.getJalaliDaysInMonth(year, month) else JalaliCalendarHelper.getGregorianDaysInMonth(year, month)
+                            day = if(day <= 1) maxDays else day - 1 
+                        }) { Icon(Icons.Default.KeyboardArrowDown, null) }
                     }
                 }
                 Spacer(modifier = Modifier.height(24.dp))

@@ -6,6 +6,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import com.example.data.AppLanguage
 
 enum class AppTheme(val displayName: String) {
     VIBRANT("Vibrant Palette"),
@@ -132,6 +133,7 @@ private val GoldThemeColors = darkColorScheme(
 @Composable
 fun FinancialAppTheme(
     theme: AppTheme = AppTheme.VIBRANT,
+    lang: AppLanguage = AppLanguage.EN,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when (theme) {
@@ -146,9 +148,10 @@ fun FinancialAppTheme(
         AppTheme.GOLD -> GoldThemeColors
     }
 
+    val typography = getAppTypography(lang)
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = typography,
         content = content
     )
 }

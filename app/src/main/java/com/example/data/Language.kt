@@ -231,3 +231,17 @@ object Translations {
         return dictionary[key]?.get(language) ?: key
     }
 }
+
+
+fun String.formatByLang(lang: AppLanguage): String {
+    if (lang == AppLanguage.EN) return this
+    var result = this
+    val en = arrayOf("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
+    val fa = arrayOf("۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹")
+    val ar = arrayOf("٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩")
+    val replacements = if (lang == AppLanguage.FA) fa else ar
+    for (i in en.indices) {
+        result = result.replace(en[i], replacements[i])
+    }
+    return result
+}

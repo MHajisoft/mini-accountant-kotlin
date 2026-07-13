@@ -22,7 +22,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val activeTheme by viewModel.theme.collectAsState()
-            FinancialAppTheme(theme = activeTheme) {
+            val activeLang by viewModel.language.collectAsState()
+            FinancialAppTheme(theme = activeTheme, lang = activeLang) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = androidx.compose.material3.MaterialTheme.colorScheme.background

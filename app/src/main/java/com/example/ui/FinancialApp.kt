@@ -339,9 +339,17 @@ fun formatMoney(amount: Double, lang: AppLanguage): String {
     }
 }
 
-fun formatDate(timestamp: Long): String {
-    val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault())
-    return sdf.format(Date(timestamp))
+fun formatDate(timestamp: Long, lang: AppLanguage): String {
+    val cal = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
+    val timeStr = String.format("%02d:%02d", cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
+    val isJalali = lang == AppLanguage.FA
+    val dateStr = if (isJalali) {
+        val jDate = com.example.data.JalaliCalendarHelper.gregorianToJalali(com.example.data.JalaliCalendarHelper.GregorianDate(cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH) + 1, cal.get(java.util.Calendar.DAY_OF_MONTH)))
+        "${jDate.year}/${jDate.month}/${jDate.day}"
+    } else {
+        "${cal.get(java.util.Calendar.YEAR)}/${cal.get(java.util.Calendar.MONTH) + 1}/${cal.get(java.util.Calendar.DAY_OF_MONTH)}"
+    }
+    return "$dateStr $timeStr".formatByLang(lang)
 }
 
 // ------------------------------------
@@ -904,7 +912,7 @@ fun TransactionItem(
                         modifier = Modifier.weight(1f, fill = false)
                     )
                     Text(
-                        text = formatDate(tx.timestamp),
+                        text = formatDate(tx.timestamp, activeLang),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         fontSize = 11.sp
@@ -1172,7 +1180,7 @@ fun ReportsTab(
                                 }
                                 Row {
                                     Text(
-                                        text = "$percent%  ",
+                                        text = "$percent%  ".formatByLang(activeLang),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
