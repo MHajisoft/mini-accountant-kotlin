@@ -427,16 +427,19 @@ fun formatCultureDate(timestamp: Long, lang: AppLanguage): String {
 @Composable
 fun CultureDatePickerDialog(initialTimestamp: Long, lang: AppLanguage, onDismiss: () -> Unit, onDateSelected: (Long) -> Unit) {
     val isJalali = lang == AppLanguage.FA
-    var year by remember { mutableStateOf(Calendar.getInstance().apply { timeInMillis = initialTimestamp }.get(Calendar.YEAR)) }
-    var month by remember { mutableStateOf(Calendar.getInstance().apply { timeInMillis = initialTimestamp }.get(Calendar.MONTH) + 1) }
-    var day by remember { mutableStateOf(Calendar.getInstance().apply { timeInMillis = initialTimestamp }.get(Calendar.DAY_OF_MONTH)) }
-
-    if (isJalali) {
-        val initialJDate = JalaliCalendarHelper.gregorianToJalali(JalaliCalendarHelper.GregorianDate(year, month, day))
-        year = initialJDate.year
-        month = initialJDate.month
-        day = initialJDate.day
+    val initialDate = remember(initialTimestamp) {
+        val cal = Calendar.getInstance().apply { timeInMillis = initialTimestamp }
+        if (isJalali) {
+            val j = JalaliCalendarHelper.gregorianToJalali(JalaliCalendarHelper.GregorianDate(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)))
+            Triple(j.year, j.month, j.day)
+        } else {
+            Triple(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
+        }
     }
+    
+    var year by remember { mutableStateOf(initialDate.first) }
+    var month by remember { mutableStateOf(initialDate.second) }
+    var day by remember { mutableStateOf(initialDate.third) }
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Card(modifier = Modifier.fillMaxWidth().padding(16.dp), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
