@@ -5,8 +5,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import com.example.ui.FinancialApp
 import com.example.ui.FinanceViewModel
 import com.example.ui.theme.FinancialAppTheme
@@ -20,7 +23,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             val activeTheme by viewModel.theme.collectAsState()
             FinancialAppTheme(theme = activeTheme) {
-                FinancialApp(viewModel = viewModel)
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.background
+                ) {
+                    FinancialApp(viewModel = viewModel)
+                }
             }
         }
     }

@@ -7,6 +7,11 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
@@ -65,224 +70,236 @@ fun FinancialApp(viewModel: FinanceViewModel = viewModel()) {
     var selectedTab by remember { mutableStateOf(0) }
     var preselectedTransactionType by remember { mutableStateOf("EXPENSE") }
 
-    // Dialog flags
+    // Dialog & Page flags
     var showAddAccountDialog by remember { mutableStateOf(false) }
-    var showAddTransactionDialog by remember { mutableStateOf(false) }
+    var showAddTransactionPage by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val layoutDirection = activeLang.layoutDirection
 
     // Wrap the entire visual tree in the localized Layout Direction (RTL for Persian/Arabic, LTR for English)
     CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
-        Scaffold(
-            containerColor = MaterialTheme.colorScheme.background,
-            topBar = {
-                Surface(
-                    color = MaterialTheme.colorScheme.background,
-                    tonalElevation = 0.dp,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+        if (showAddTransactionPage) {
+            AddTransactionPage(
+                accounts = accountsList,
+                activeLang = activeLang,
+                initialType = preselectedTransactionType,
+                expenseCategories = expenseCategories,
+                incomeCategories = incomeCategories,
+                onDismiss = { showAddTransactionPage = false },
+                onSave = { amount, type, category, accountId, targetAccId, timestamp, description ->
+                    viewModel.addTransaction(amount, type, category, accountId, targetAccId, description, timestamp)
+                    showAddTransactionPage = false
+                    Toast.makeText(context, Translations.getString("success", activeLang), Toast.LENGTH_SHORT).show()
+                }
+            )
+        } else {
+            Scaffold(
+                containerColor = MaterialTheme.colorScheme.background,
+                topBar = {
+                    Surface(
+                        color = MaterialTheme.colorScheme.background,
+                        tonalElevation = 0.dp,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        // Left group: Circle Logo 'F' + Title & Sync info
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .statusBarsPadding()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary),
-                                contentAlignment = Alignment.Center
+                            // Left group: Circle Logo 'F' + Title & Sync info
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text(
-                                    text = "F",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 20.sp
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "FinTrack",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF4CAF50)) // Synced dot (green)
-                                    )
                                     Text(
-                                        text = "Synced",
-                                        fontSize = 10.sp,
+                                        text = "F",
+                                        color = Color.White,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                                        fontSize = 20.sp
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "FinTrack",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF4CAF50)) // Synced dot (green)
+                                        )
+                                        Text(
+                                            text = "Synced",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Right group: language switcher + add account icon
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Quick Language Switcher Pill
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                        .clickable {
+                                            // Cycle language
+                                            val nextLang = when (activeLang) {
+                                                AppLanguage.EN -> AppLanguage.FA
+                                                AppLanguage.FA -> AppLanguage.AR
+                                                AppLanguage.AR -> AppLanguage.EN
+                                            }
+                                            viewModel.setLanguage(nextLang)
+                                        }
+                                        .padding(4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = activeLang.code.uppercase(),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                // Add Account Button Styled as profile-like action
+                                IconButton(
+                                    onClick = { showAddAccountDialog = true },
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                        .testTag("add_account_top_btn")
+                                ) {
+                                    Icon(
+                                        Icons.Default.AccountBalanceWallet,
+                                        contentDescription = "Add Account",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
                         }
+                    }
+                },
+                bottomBar = {
+                    NavigationBar(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        tonalElevation = 8.dp,
+                        windowInsets = WindowInsets.navigationBars
+                    ) {
+                        val labelAccounts = Translations.getString("accounts", activeLang)
+                        val labelTransactions = Translations.getString("transactions", activeLang)
+                        val labelReports = Translations.getString("reports", activeLang)
+                        val labelSettings = Translations.getString("settings", activeLang)
 
-                        // Right group: language switcher + add account icon
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        NavigationBarItem(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            icon = { Icon(if (selectedTab == 0) Icons.Filled.Dashboard else Icons.Outlined.Dashboard, contentDescription = labelAccounts) },
+                            label = { Text(labelAccounts, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            modifier = Modifier.testTag("nav_tab_dashboard")
+                        )
+                        NavigationBarItem(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            icon = { Icon(if (selectedTab == 1) Icons.Filled.ListAlt else Icons.Outlined.ListAlt, contentDescription = labelTransactions) },
+                            label = { Text(labelTransactions, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            modifier = Modifier.testTag("nav_tab_transactions")
+                        )
+                        NavigationBarItem(
+                            selected = selectedTab == 2,
+                            onClick = { selectedTab = 2 },
+                            icon = { Icon(if (selectedTab == 2) Icons.Filled.PieChart else Icons.Outlined.PieChart, contentDescription = labelReports) },
+                            label = { Text(labelReports, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            modifier = Modifier.testTag("nav_tab_reports")
+                        )
+                        NavigationBarItem(
+                            selected = selectedTab == 3,
+                            onClick = { selectedTab = 3 },
+                            icon = { Icon(if (selectedTab == 3) Icons.Filled.Settings else Icons.Outlined.Settings, contentDescription = labelSettings) },
+                            label = { Text(labelSettings, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            modifier = Modifier.testTag("nav_tab_settings")
+                        )
+                    }
+                },
+                floatingActionButton = {
+                    if (selectedTab == 0 || selectedTab == 1) {
+                        FloatingActionButton(
+                            onClick = {
+                                preselectedTransactionType = "EXPENSE"
+                                showAddTransactionPage = true
+                            },
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.testTag("fab_add_transaction")
                         ) {
-                            // Quick Language Switcher Pill
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                    .clickable {
-                                        // Cycle language
-                                        val nextLang = when (activeLang) {
-                                            AppLanguage.EN -> AppLanguage.FA
-                                            AppLanguage.FA -> AppLanguage.AR
-                                            AppLanguage.AR -> AppLanguage.EN
-                                        }
-                                        viewModel.setLanguage(nextLang)
-                                    }
-                                    .padding(4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = activeLang.code.uppercase(),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            // Add Account Button Styled as profile-like action
-                            IconButton(
-                                onClick = { showAddAccountDialog = true },
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                    .testTag("add_account_top_btn")
-                            ) {
-                                Icon(
-                                    Icons.Default.AccountBalanceWallet,
-                                    contentDescription = "Add Account",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                            Icon(Icons.Default.Add, contentDescription = null)
                         }
                     }
                 }
-            },
-            bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = 8.dp,
-                    windowInsets = WindowInsets.navigationBars
+            ) { paddingValues ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .background(MaterialTheme.colorScheme.background)
                 ) {
-                    val labelAccounts = Translations.getString("accounts", activeLang)
-                    val labelTransactions = Translations.getString("transactions", activeLang)
-                    val labelReports = Translations.getString("reports", activeLang)
-                    val labelSettings = Translations.getString("settings", activeLang)
-
-                    NavigationBarItem(
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        icon = { Icon(if (selectedTab == 0) Icons.Filled.Dashboard else Icons.Outlined.Dashboard, contentDescription = labelAccounts) },
-                        label = { Text(labelAccounts, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        modifier = Modifier.testTag("nav_tab_dashboard")
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
-                        icon = { Icon(if (selectedTab == 1) Icons.Filled.ListAlt else Icons.Outlined.ListAlt, contentDescription = labelTransactions) },
-                        label = { Text(labelTransactions, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        modifier = Modifier.testTag("nav_tab_transactions")
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 2,
-                        onClick = { selectedTab = 2 },
-                        icon = { Icon(if (selectedTab == 2) Icons.Filled.PieChart else Icons.Outlined.PieChart, contentDescription = labelReports) },
-                        label = { Text(labelReports, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        modifier = Modifier.testTag("nav_tab_reports")
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 3,
-                        onClick = { selectedTab = 3 },
-                        icon = { Icon(if (selectedTab == 3) Icons.Filled.Settings else Icons.Outlined.Settings, contentDescription = labelSettings) },
-                        label = { Text(labelSettings, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        modifier = Modifier.testTag("nav_tab_settings")
-                    )
-                }
-            },
-            floatingActionButton = {
-                if (selectedTab == 0 || selectedTab == 1) {
-                    ExtendedFloatingActionButton(
-                        onClick = {
-                            preselectedTransactionType = "EXPENSE"
-                            showAddTransactionDialog = true
-                        },
-                        icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                        text = { Text(Translations.getString("add_transaction", activeLang)) },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.testTag("fab_add_transaction")
-                    )
-                }
-            }
-        ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .background(MaterialTheme.colorScheme.background)
-            ) {
-                // Render screen content based on selected tab
-                when (selectedTab) {
-                    0 -> DashboardTab(
-                        viewModel = viewModel,
-                        accounts = accountsList,
-                        transactions = transactionsList,
-                        activeLang = activeLang,
-                        onAddAccountClick = { showAddAccountDialog = true },
-                        onQuickActionClick = { actionType ->
-                            if (actionType == "VAULT") {
-                                selectedTab = 3 // Go to Settings tab
-                            } else {
+                    // Render screen content based on selected tab
+                    when (selectedTab) {
+                        0 -> DashboardTab(
+                            viewModel = viewModel,
+                            accounts = accountsList,
+                            transactions = transactionsList,
+                            activeLang = activeLang,
+                            onAddAccountClick = { showAddAccountDialog = true },
+                            onQuickActionClick = { actionType ->
                                 preselectedTransactionType = actionType
-                                showAddTransactionDialog = true
+                                showAddTransactionPage = true
                             }
-                        }
-                    )
-                    1 -> TransactionsTab(
-                        viewModel = viewModel,
-                        transactions = transactionsList,
-                        accounts = accountsList,
-                        activeLang = activeLang
-                    )
-                    2 -> ReportsTab(
-                        accounts = accountsList,
-                        transactions = transactionsList,
-                        activeLang = activeLang
-                    )
-                    3 -> SettingsTab(
-                        viewModel = viewModel,
-                        activeLang = activeLang,
-                        activeTheme = activeTheme
-                    )
+                        )
+                        1 -> TransactionsTab(
+                            viewModel = viewModel,
+                            transactions = transactionsList,
+                            accounts = accountsList,
+                            activeLang = activeLang
+                        )
+                        2 -> ReportsTab(
+                            accounts = accountsList,
+                            transactions = transactionsList,
+                            activeLang = activeLang
+                        )
+                        3 -> SettingsTab(
+                            viewModel = viewModel,
+                            activeLang = activeLang,
+                            activeTheme = activeTheme
+                        )
+                    }
                 }
             }
         }
@@ -300,29 +317,26 @@ fun FinancialApp(viewModel: FinanceViewModel = viewModel()) {
             )
         }
 
-        // Add Transaction Dialog
-        if (showAddTransactionDialog) {
-            AddTransactionDialog(
-                accounts = accountsList,
-                activeLang = activeLang,
-                initialType = preselectedTransactionType,
-                expenseCategories = expenseCategories,
-                incomeCategories = incomeCategories,
-                onDismiss = { showAddTransactionDialog = false },
-                onSave = { amount, type, category, accountId, targetAccId, description ->
-                    viewModel.addTransaction(amount, type, category, accountId, targetAccId, description)
-                    showAddTransactionDialog = false
-                    Toast.makeText(context, Translations.getString("success", activeLang), Toast.LENGTH_SHORT).show()
-                }
-            )
-        }
+        // Add Transaction Dialog (Type Selection removed)
     }
 }
 
 // FORMATTER HELPERS
-fun formatMoney(amount: Double): String {
-    val df = DecimalFormat("#,##0.00")
-    return "$" + df.format(amount)
+fun formatMoney(amount: Double, lang: AppLanguage): String {
+    return if (lang == AppLanguage.FA) {
+        val df = DecimalFormat("#,###")
+        if (amount % 10.0 == 0.0) {
+            df.format(amount / 10.0) + " تومان"
+        } else {
+            df.format(amount) + " ریال"
+        }
+    } else if (lang == AppLanguage.AR) {
+        val df = DecimalFormat("#,##0.00")
+        df.format(amount) + " د.إ"
+    } else {
+        val df = DecimalFormat("#,##0.00")
+        "$" + df.format(amount)
+    }
 }
 
 fun formatDate(timestamp: Long): String {
@@ -342,6 +356,7 @@ fun DashboardTab(
     onAddAccountClick: () -> Unit,
     onQuickActionClick: (String) -> Unit
 ) {
+    var selectedAccountForTransactions by remember { mutableStateOf<Account?>(null) }
     val netBalance = viewModel.getNetBalance(accounts, transactions)
 
     LazyColumn(
@@ -378,7 +393,7 @@ fun DashboardTab(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = formatMoney(netBalance),
+                            text = formatMoney(netBalance, activeLang),
                             fontSize = 32.sp,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -513,32 +528,6 @@ fun DashboardTab(
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
                 }
-
-                // Vault Button
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFFF3E5F5)) // purple-100
-                            .clickable {
-                                onQuickActionClick("VAULT")
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("▦", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6A1B9A))
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Vault",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                    )
-                }
             }
         }
 
@@ -589,8 +578,7 @@ fun DashboardTab(
         } else {
             items(accounts) { account ->
                 val currentBalance = viewModel.getAccountBalance(account, transactions)
-                var confirmDelete by remember { mutableStateOf(false) }
-
+                
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -603,7 +591,8 @@ fun DashboardTab(
                             },
                             shape = RoundedCornerShape(16.dp)
                         )
-                        .testTag("account_card_${account.id}"),
+                        .testTag("account_card_${account.id}")
+                        .clickable { selectedAccountForTransactions = account },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
@@ -635,33 +624,7 @@ fun DashboardTab(
                                 )
                             }
 
-                            if (!confirmDelete) {
-                                IconButton(onClick = { confirmDelete = true }) {
-                                    Icon(
-                                        Icons.Default.Delete,
-                                        contentDescription = "Delete Account",
-                                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
-                                    )
-                                }
-                            } else {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    TextButton(onClick = { confirmDelete = false }) {
-                                        Text(Translations.getString("cancel", activeLang), fontSize = 12.sp)
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            viewModel.deleteAccount(account)
-                                            confirmDelete = false
-                                        }
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Check,
-                                            contentDescription = "Confirm",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                }
-                            }
+
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -677,7 +640,7 @@ fun DashboardTab(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = formatMoney(currentBalance),
+                                text = formatMoney(currentBalance, activeLang),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = if (currentBalance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
@@ -735,6 +698,15 @@ fun DashboardTab(
                 )
             }
         }
+    }
+    
+    selectedAccountForTransactions?.let { account ->
+        AccountTransactionsDialog(
+            account = account,
+            viewModel = viewModel,
+            activeLang = activeLang,
+            onDismiss = { selectedAccountForTransactions = null }
+        )
     }
 }
 
@@ -833,8 +805,8 @@ fun TransactionItem(
     activeLang: AppLanguage,
     onDelete: () -> Unit
 ) {
+    
     var confirmDelete by remember { mutableStateOf(false) }
-
     val categoryBgColor = when {
         tx.type == "INCOME" -> Color(0xFFE8F5E9) // Emerald-100
         tx.type == "TRANSFER" -> Color(0xFFF3E5F5) // Purple-100
@@ -905,7 +877,7 @@ fun TransactionItem(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = (if (tx.type == "EXPENSE") "-" else if (tx.type == "INCOME") "+" else "") + formatMoney(tx.amount),
+                        text = (if (tx.type == "EXPENSE") "-" else if (tx.type == "INCOME") "+" else "") + formatMoney(tx.amount, activeLang),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.ExtraBold,
                         color = categoryIconColor
@@ -1036,7 +1008,7 @@ fun ReportsTab(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(Translations.getString("income", activeLang), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                Text(formatMoney(totalIncome), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
+                                Text(formatMoney(totalIncome, activeLang), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Box(
@@ -1063,7 +1035,7 @@ fun ReportsTab(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(Translations.getString("expense", activeLang), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                Text(formatMoney(totalExpense), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE91E63))
+                                Text(formatMoney(totalExpense, activeLang), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE91E63))
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Box(
@@ -1205,7 +1177,7 @@ fun ReportsTab(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        text = formatMoney(item.second),
+                                        text = formatMoney(item.second, activeLang),
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1465,7 +1437,7 @@ fun SettingsTab(
                     }
 
                     // Cloud Auto Sync Panel
-                    Divider(modifier = Modifier.padding(vertical = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1715,10 +1687,11 @@ fun AddAccountDialog(
 
                 OutlinedTextField(
                     value = balance,
-                    onValueChange = { balance = it },
+                    onValueChange = { balance = it.replace(Regex("[^\\d.]"), "") },
                     label = { Text(Translations.getString("initial_balance", activeLang)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    visualTransformation = ThousandsSeparatorVisualTransformation(),
                     modifier = Modifier.fillMaxWidth().testTag("account_balance_input")
                 )
 
@@ -1778,600 +1751,3 @@ fun AddAccountDialog(
     }
 }
 
-// ------------------------------------
-// DIALOG: ADD NEW TRANSACTION / TRANSFER
-// ------------------------------------
-@Composable
-fun AddTransactionDialog(
-    accounts: List<Account>,
-    activeLang: AppLanguage,
-    initialType: String = "EXPENSE",
-    expenseCategories: List<String>,
-    incomeCategories: List<String>,
-    onDismiss: () -> Unit,
-    onSave: (amount: Double, type: String, category: String, accountId: Int, targetAccId: Int?, description: String) -> Unit
-) {
-    var amount by remember { mutableStateOf("") }
-    var selectedType by remember { mutableStateOf(initialType) } // INCOME, EXPENSE, TRANSFER
-    var description by remember { mutableStateOf("") }
-
-    // Dropdown / Row triggers
-    var selectedAccountId by remember { mutableStateOf(accounts.firstOrNull()?.id ?: 0) }
-    var selectedTargetAccountId by remember { mutableStateOf(accounts.getOrNull(1)?.id ?: accounts.firstOrNull()?.id ?: 0) }
-
-    val transferCategories = listOf("Transfer")
-
-    var selectedCategory by remember { mutableStateOf(if (initialType == "EXPENSE") expenseCategories.firstOrNull() ?: "Other" else incomeCategories.firstOrNull() ?: "Other") }
-
-    // Sync categories when transaction type switches
-    LaunchedEffect(selectedType, expenseCategories, incomeCategories) {
-        selectedCategory = when (selectedType) {
-            "EXPENSE" -> expenseCategories.firstOrNull() ?: "Other"
-            "INCOME" -> incomeCategories.firstOrNull() ?: "Other"
-            else -> transferCategories.firstOrNull() ?: "Transfer"
-        }
-    }
-
-    // Accordion expand/collapse state: can be "TYPE", "SOURCE_ACC", "TARGET_ACC", or null (fully collapsed)
-    var expandedSection by remember { mutableStateOf<String?>("TYPE") }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
-                .testTag("add_transaction_dialog"),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            LazyColumn(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                item {
-                    Text(
-                        text = Translations.getString("add_transaction", activeLang),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                // 1. Transaction Type Accordion
-                item {
-                    val isExpanded = expandedSection == "TYPE"
-                    val labelText = when (selectedType) {
-                        "EXPENSE" -> Translations.getString("expense", activeLang)
-                        "INCOME" -> Translations.getString("income", activeLang)
-                        else -> Translations.getString("transfer", activeLang)
-                    }
-                    val typeIcon = when (selectedType) {
-                        "EXPENSE" -> Icons.Default.TrendingDown
-                        "INCOME" -> Icons.Default.TrendingUp
-                        else -> Icons.Default.SwapHoriz
-                    }
-                    val typeColor = when (selectedType) {
-                        "EXPENSE" -> Color(0xFFC62828)
-                        "INCOME" -> Color(0xFF2E7D32)
-                        else -> Color(0xFF6A1B9A)
-                    }
-
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            // Header Clickable
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { expandedSection = if (isExpanded) null else "TYPE" }
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .clip(CircleShape)
-                                            .background(typeColor.copy(alpha = 0.15f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = typeIcon,
-                                            contentDescription = null,
-                                            tint = typeColor,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                    Column {
-                                        Text(
-                                            text = if (activeLang == AppLanguage.FA) "نوع تراکنش" else if (activeLang == AppLanguage.AR) "نوع المعاملة" else "Transaction Type",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = labelText,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                }
-                                Icon(
-                                    imageVector = if (isExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
-                            // Expanded Content
-                            AnimatedVisibility(visible = isExpanded) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    val types = listOf("EXPENSE", "INCOME", "TRANSFER")
-                                    types.forEach { t ->
-                                        val tLabel = when (t) {
-                                            "EXPENSE" -> Translations.getString("expense", activeLang)
-                                            "INCOME" -> Translations.getString("income", activeLang)
-                                            else -> Translations.getString("transfer", activeLang)
-                                        }
-                                        val tIcon = when (t) {
-                                            "EXPENSE" -> Icons.Default.TrendingDown
-                                            "INCOME" -> Icons.Default.TrendingUp
-                                            else -> Icons.Default.SwapHoriz
-                                        }
-                                        val tColor = when (t) {
-                                            "EXPENSE" -> Color(0xFFC62828)
-                                            "INCOME" -> Color(0xFF2E7D32)
-                                            else -> Color(0xFF6A1B9A)
-                                        }
-                                        val isCurrent = selectedType == t
-
-                                        Surface(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clickable {
-                                                    selectedType = t
-                                                    expandedSection = "SOURCE_ACC" // Auto-advance!
-                                                },
-                                            shape = RoundedCornerShape(10.dp),
-                                            color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent,
-                                            border = BorderStroke(
-                                                width = if (isCurrent) 1.5.dp else 1.dp,
-                                                color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                            )
-                                        ) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                                ) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(30.dp)
-                                                            .clip(CircleShape)
-                                                            .background(tColor.copy(alpha = 0.1f)),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Icon(tIcon, contentDescription = null, tint = tColor, modifier = Modifier.size(16.dp))
-                                                    }
-                                                    Text(tLabel, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                                }
-                                                if (isCurrent) {
-                                                    Icon(Icons.Default.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 2. Amount Field
-                item {
-                    OutlinedTextField(
-                        value = amount,
-                        onValueChange = { amount = it },
-                        label = { Text(Translations.getString("amount", activeLang)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.fillMaxWidth().testTag("transaction_amount_input")
-                    )
-                }
-
-                // 3. Source Account Accordion
-                item {
-                    val isExpanded = expandedSection == "SOURCE_ACC"
-                    val selectedAcc = accounts.find { it.id == selectedAccountId } ?: accounts.firstOrNull()
-                    val accColor = try {
-                        Color(android.graphics.Color.parseColor(selectedAcc?.colorHex ?: "#1a73e8"))
-                    } catch (e: Exception) {
-                        MaterialTheme.colorScheme.primary
-                    }
-
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            // Header
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { expandedSection = if (isExpanded) null else "SOURCE_ACC" }
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .clip(CircleShape)
-                                            .background(accColor.copy(alpha = 0.15f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.AccountBalanceWallet,
-                                            contentDescription = null,
-                                            tint = accColor,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                    Column {
-                                        Text(
-                                            text = Translations.getString(if (selectedType == "TRANSFER") "from_account" else "select_account", activeLang),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = selectedAcc?.name ?: "Select",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                }
-                                Icon(
-                                    imageVector = if (isExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
-                            // Expanded list
-                            AnimatedVisibility(visible = isExpanded) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    accounts.forEach { acc ->
-                                        val isCurrent = selectedAccountId == acc.id
-                                        val cColor = try {
-                                            Color(android.graphics.Color.parseColor(acc.colorHex))
-                                        } catch (e: Exception) {
-                                            MaterialTheme.colorScheme.primary
-                                        }
-
-                                        Surface(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clickable {
-                                                    selectedAccountId = acc.id
-                                                    // Auto-advance
-                                                    expandedSection = if (selectedType == "TRANSFER") "TARGET_ACC" else null
-                                                },
-                                            shape = RoundedCornerShape(10.dp),
-                                            color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent,
-                                            border = BorderStroke(
-                                                width = if (isCurrent) 1.5.dp else 1.dp,
-                                                color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                            )
-                                        ) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                                ) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(30.dp)
-                                                            .clip(CircleShape)
-                                                            .background(cColor.copy(alpha = 0.1f)),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = cColor, modifier = Modifier.size(16.dp))
-                                                    }
-                                                    Column {
-                                                        Text(acc.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                                        Text(formatMoney(acc.initialBalance), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                    }
-                                                }
-                                                if (isCurrent) {
-                                                    Icon(Icons.Default.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 4. Target Account Accordion (Only for TRANSFER)
-                if (selectedType == "TRANSFER") {
-                    item {
-                        val isExpanded = expandedSection == "TARGET_ACC"
-                        val selectedTargetAcc = accounts.find { it.id == selectedTargetAccountId } ?: accounts.getOrNull(1) ?: accounts.firstOrNull()
-                        val targetAccColor = try {
-                            Color(android.graphics.Color.parseColor(selectedTargetAcc?.colorHex ?: "#1a73e8"))
-                        } catch (e: Exception) {
-                            MaterialTheme.colorScheme.primary
-                        }
-
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                        ) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                // Header
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { expandedSection = if (isExpanded) null else "TARGET_ACC" }
-                                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(36.dp)
-                                                .clip(CircleShape)
-                                                .background(targetAccColor.copy(alpha = 0.15f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.AccountBalanceWallet,
-                                                contentDescription = null,
-                                                tint = targetAccColor,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                        Column {
-                                            Text(
-                                                text = Translations.getString("to_account", activeLang),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = selectedTargetAcc?.name ?: "Select",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                    }
-                                    Icon(
-                                        imageVector = if (isExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-
-                                // Expanded list (Excludes the selectedSourceAccount to be safe and logical!)
-                                AnimatedVisibility(visible = isExpanded) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        // filter out the source account
-                                        accounts.filter { it.id != selectedAccountId }.forEach { acc ->
-                                            val isCurrent = selectedTargetAccountId == acc.id
-                                            val cColor = try {
-                                                Color(android.graphics.Color.parseColor(acc.colorHex))
-                                            } catch (e: Exception) {
-                                                MaterialTheme.colorScheme.primary
-                                            }
-
-                                            Surface(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable {
-                                                        selectedTargetAccountId = acc.id
-                                                        expandedSection = null // Complete!
-                                                    },
-                                                shape = RoundedCornerShape(10.dp),
-                                                color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent,
-                                                border = BorderStroke(
-                                                    width = if (isCurrent) 1.5.dp else 1.dp,
-                                                    color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                                )
-                                            ) {
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.SpaceBetween
-                                                ) {
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                                    ) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .size(30.dp)
-                                                                .clip(CircleShape)
-                                                                .background(cColor.copy(alpha = 0.1f)),
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
-                                                            Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = cColor, modifier = Modifier.size(16.dp))
-                                                        }
-                                                        Column {
-                                                            Text(acc.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                                            Text(formatMoney(acc.initialBalance), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                        }
-                                                    }
-                                                    if (isCurrent) {
-                                                        Icon(Icons.Default.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 5. Category Selection grid (Only for Income and Expense)
-                if (selectedType != "TRANSFER") {
-                    item {
-                        Text(
-                            text = Translations.getString("select_category", activeLang),
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        val currentCategories = if (selectedType == "EXPENSE") expenseCategories else incomeCategories
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                currentCategories.chunked(3).forEach { rowCats ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        rowCats.forEach { cat ->
-                                            val catTranslated = translateCategory(cat, activeLang)
-                                            val isSelected = selectedCategory == cat
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .background(
-                                                        if (isSelected) MaterialTheme.colorScheme.secondaryContainer
-                                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                                                    )
-                                                    .border(
-                                                        width = 1.dp,
-                                                        color = if (isSelected) MaterialTheme.colorScheme.secondary else Color.Transparent,
-                                                        shape = RoundedCornerShape(8.dp)
-                                                    )
-                                                    .clickable { selectedCategory = cat }
-                                                    .padding(6.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(catTranslated, fontSize = 11.sp, maxLines = 1)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 6. Description Field
-                item {
-                    OutlinedTextField(
-                        value = description,
-                        onValueChange = { description = it },
-                        label = { Text(Translations.getString("description", activeLang)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().testTag("transaction_desc_input")
-                    )
-                }
-
-                // 7. Save / Cancel row
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(onClick = onDismiss) {
-                            Text(Translations.getString("cancel", activeLang))
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                val amt = amount.toDoubleOrNull() ?: 0.0
-                                if (amt > 0 && selectedAccountId > 0) {
-                                    val finalTargetId = if (selectedType == "TRANSFER") selectedTargetAccountId else null
-                                    onSave(amt, selectedType, selectedCategory, selectedAccountId, finalTargetId, description)
-                                }
-                            },
-                            enabled = (amount.toDoubleOrNull() ?: 0.0) > 0.0 && selectedAccountId > 0
-                        ) {
-                            Text(Translations.getString("save", activeLang))
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// HELPER FOR CATEGORIES LOCAL TRANSLATION
-fun translateCategory(category: String, lang: AppLanguage): String {
-    return when (category) {
-        "Food" -> when (lang) { AppLanguage.FA -> "غذا"; AppLanguage.AR -> "طعام"; else -> "Food" }
-        "Groceries" -> when (lang) { AppLanguage.FA -> "خواروبار"; AppLanguage.AR -> "بقاليات"; else -> "Groceries" }
-        "Transport" -> when (lang) { AppLanguage.FA -> "حمل و نقل"; AppLanguage.AR -> "النقل"; else -> "Transport" }
-        "Rent" -> when (lang) { AppLanguage.FA -> "اجاره"; AppLanguage.AR -> "الإيجار"; else -> "Rent" }
-        "Utilities" -> when (lang) { AppLanguage.FA -> "قبوض"; AppLanguage.AR -> "الفواتير"; else -> "Utilities" }
-        "Shopping" -> when (lang) { AppLanguage.FA -> "خرید"; AppLanguage.AR -> "التسوق"; else -> "Shopping" }
-        "Health" -> when (lang) { AppLanguage.FA -> "سلامت/پزشکی"; AppLanguage.AR -> "الصحة/الطب"; else -> "Health" }
-        "Education" -> when (lang) { AppLanguage.FA -> "آموزش"; AppLanguage.AR -> "التعليم"; else -> "Education" }
-        "Salary" -> when (lang) { AppLanguage.FA -> "حقوق"; AppLanguage.AR -> "الراتب"; else -> "Salary" }
-        "Business" -> when (lang) { AppLanguage.FA -> "کسب و کار"; AppLanguage.AR -> "الأعمال"; else -> "Business" }
-        "Investment" -> when (lang) { AppLanguage.FA -> "سرمایه‌گذاری"; AppLanguage.AR -> "الاستثمار"; else -> "Investment" }
-        "Gift" -> when (lang) { AppLanguage.FA -> "هدیه"; AppLanguage.AR -> "هدية"; else -> "Gift" }
-        "Other" -> when (lang) { AppLanguage.FA -> "سایر موارد"; AppLanguage.AR -> "أخرى"; else -> "Other" }
-        "Transfer" -> when (lang) { AppLanguage.FA -> "انتقال"; AppLanguage.AR -> "تحويل"; else -> "Transfer" }
-        else -> category
-    }
-}

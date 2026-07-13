@@ -16,6 +16,10 @@ class FinanceRepository(
         return transactionDao.getTransactionsByAccountFlow(accountId)
     }
 
+    suspend fun getTransactionsByAccountPaginated(accountId: Int, limit: Int, offset: Int): List<Transaction> {
+        return transactionDao.getTransactionsByAccountPaginated(accountId, limit, offset)
+    }
+
     suspend fun insertAccount(account: Account): Long {
         return accountDao.insertAccount(account)
     }

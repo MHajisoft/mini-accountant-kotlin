@@ -35,6 +35,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE accountId = :accountId OR transferToAccountId = :accountId ORDER BY timestamp DESC")
     fun getTransactionsByAccountFlow(accountId: Int): Flow<List<Transaction>>
 
+    @Query("SELECT * FROM transactions WHERE accountId = :accountId OR transferToAccountId = :accountId ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
+    suspend fun getTransactionsByAccountPaginated(accountId: Int, limit: Int, offset: Int): List<Transaction>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: Transaction): Long
 

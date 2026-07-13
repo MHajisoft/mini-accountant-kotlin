@@ -156,6 +156,15 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun loadAccountTransactions(accountId: Int, page: Int, pageSize: Int, onResult: (List<Transaction>) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val res = repository.getTransactionsByAccountPaginated(accountId, pageSize, page * pageSize)
+            kotlinx.coroutines.withContext(Dispatchers.Main) {
+                onResult(res)
+            }
+        }
+    }
+
     fun deleteTransaction(transaction: Transaction) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteTransaction(transaction)
